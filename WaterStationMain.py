@@ -193,6 +193,7 @@ def on_button_click(button_number):
         coffee_valve.off()
         with pulse_lock:
             pulse_count = 0
+            valve_start_time = None
         if root:
             root.after(0, lambda: status_var.set("Stopped"))
             root.after(0, lambda: progress_var.set(0))
