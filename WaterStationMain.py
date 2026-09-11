@@ -89,7 +89,7 @@ def control_gpio():
                     current_pulses = pulse_count
 
                 # Only start safety timer after first pulse is received
-                if current_pulses > 0 and valve_start_time is None:
+                if current_pulses > 2 and valve_start_time is None:
                     valve_start_time = time.time()
 
                 # Safety cutoff
@@ -179,7 +179,7 @@ def control_gpio():
 
 # ---------------- Button Actions ----------------
 def on_button_click(button_number):
-    global drinkWaterEnabled, coffeeWaterEnabled, pin, duration, currentTime, sleepEnabled, pulse_count
+    global drinkWaterEnabled, coffeeWaterEnabled, pin, duration, currentTime, sleepEnabled, pulse_count, valve_start_time
     sleepEnabled = False
     currentTime = time.time()
     if button_number < 1 or button_number > 6:
