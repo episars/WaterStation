@@ -37,7 +37,7 @@ sleepEnabled = False
 currentTime = 0
 def calc_pulses_needed():
     return [
-        1.25 * Pulses_per_liter_coffee, .9 * Pulses_per_liter_RO, 1 * Pulses_per_liter_RO,
+        1.25 * Pulses_per_liter_coffee, .85 * Pulses_per_liter_RO, 1 * Pulses_per_liter_RO,
         .2 * Pulses_per_liter_RO, .2 * Pulses_per_liter_RO, .325 * Pulses_per_liter_RO
     ]
 
