@@ -1,0 +1,15 @@
+No calibration file found, using defaults
+Traceback (most recent call last):
+  File "/home/edp/Desktop/Waterstation/WaterStationMain.py", line 598, in <module>
+    create_gui()
+    ~~~~~~~~~~^^
+  File "/home/edp/Desktop/Waterstation/WaterStationMain.py", line 543, in create_gui
+    root = tk.Tk()
+  File "/usr/lib/python3.13/tkinter/__init__.py", line 2462, in __init__
+    self.tk = _tkinter.create(screenName, baseName, className, interactive, wantobjects, useTk, sync, use)
+              ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: no display name and no $DISPLAY environment variable
+/usr/bin/python3: can't open file '/home/edp/WaterStationMain.py': [Errno 2] No such file or directory
+/usr/bin/python3: can't open file '/home/edp/WaterStationMain.py': [Errno 2] No such file or directory
+No calibration file found, using defaults
+No calibration file found, using defaults

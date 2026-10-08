@@ -6,10 +6,10 @@ import datetime
 # ============================================================
 
 # The first recycling pickup date
-RECYCLING_START_DATE = datetime.date(2025, 5, 19)
+RECYCLING_START_DATE = datetime.date(2026,10, 8)
 
 # Pickup weekday: 0 = Monday ... 6 = Sunday
-PICKUP_WEEKDAY = 0
+PICKUP_WEEKDAY = 3
 
 # How often (ms) to re-raise the window so nothing can sit on top of it
 RAISE_INTERVAL_MS = 500
