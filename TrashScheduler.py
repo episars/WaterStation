@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import subprocess, time, datetime, sys, os
 
-os.chdir("/home/edp/Desktop/Waterstation")
+os.chdir("/home/edp/Desktop/WaterStation")
 last_run = None
 
 while True:
