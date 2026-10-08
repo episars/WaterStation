@@ -432,7 +432,7 @@ def open_calibration_screen():
 
     def save_to_file():
         try:
-            with open("/home/edp/Desktop/Waterstation/calibration.txt", "w") as f:
+            with open("/home/edp/Desktop/WaterStation/calibration.txt", "w") as f:
                 f.write(f"Pulses_per_liter_RO={Pulses_per_liter_RO}\n")
                 f.write(f"Pulses_per_liter_coffee={Pulses_per_liter_coffee}\n")
             status_label.config(text="Saved!", fg="green")
@@ -470,7 +470,7 @@ def open_calibration_screen():
 def load_calibration():
     global Pulses_per_liter_RO, Pulses_per_liter_coffee, pulses_needed
     try:
-        with open("edp/Desktop/Waterstationcalibration.txt", "r") as f:
+        with open("edp/Desktop/WaterStationcalibration.txt", "r") as f:
             for line in f:
                 if line.startswith("Pulses_per_liter_RO="):
                     Pulses_per_liter_RO = int(line.split("=")[1].strip())
@@ -549,9 +549,9 @@ def create_gui():
 
     image_width, image_height = 250, 200
     image_paths = [
-        "/home/edp/Desktop/Waterstation/MoccaMaster1L.jpg", "/home/edp/Desktop/Waterstation/32ozCup.jpg",
-"/home/edp/Desktop/Waterstation/nalgene.jpg", "/home/edp/Desktop/Waterstation/kidsCup.jpg",
-        "/home/edp/Desktop/Waterstation/kidsBottle.jpg", "/home/edp/Desktop/Waterstation/BlueCup.jpg"
+        "/home/edp/Desktop/WaterStation/MoccaMaster1L.jpg", "/home/edp/Desktop/WaterStation/32ozCup.jpg",
+"/home/edp/Desktop/WaterStation/nalgene.jpg", "/home/edp/Desktop/WaterStation/kidsCup.jpg",
+        "/home/edp/Desktop/WaterStation/kidsBottle.jpg", "/home/edp/Desktop/WaterStation/BlueCup.jpg"
     ]
 
     for i in range(6):
