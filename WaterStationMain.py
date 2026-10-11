@@ -15,6 +15,9 @@ flow_sensor = DigitalInputDevice(22, pull_up=True)
 ro_valve = OutputDevice(17, active_high=False, initial_value=False)
 coffee_valve = OutputDevice(27, active_high=False, initial_value=False)
 
+CAL_FILE = "/home/edp/Desktop/WaterStation/calibration.txt"
+LONG_PRESS_SECONDS = 1.5   # hold a container button this long to adjust its amount
+
 Pulses_per_liter_RO = 2025
 Pulses_per_liter_coffee = 2050
 concentrate_ppm = 550
@@ -22,6 +25,12 @@ target_ppm = 85
 calibration_mode = False
 calibration_start_pulses = 0
 coffeeWaterRatio = (concentrate_ppm - target_ppm) / target_ppm
+
+# Amount (ml) dispensed by each of the 6 container buttons.
+# Button 1 is the coffee mix (ml = total finished volume).
+DEFAULT_CONTAINER_ML = [1250, 750, 1000, 200, 200, 325]
+container_ml = list(DEFAULT_CONTAINER_ML)
+container_buttons = []
 
 pulse_count = 0
 pulse_lock = threading.Lock()
@@ -35,11 +44,10 @@ sleepBrightness = 10
 fullBrightness = 125
 sleepEnabled = False
 currentTime = 0
+
 def calc_pulses_needed():
-    return [
-        1.25 * Pulses_per_liter_coffee, .85 * Pulses_per_liter_RO, 1 * Pulses_per_liter_RO,
-        .2 * Pulses_per_liter_RO, .2 * Pulses_per_liter_RO, .325 * Pulses_per_liter_RO
-    ]
+    ppl = [Pulses_per_liter_coffee] + [Pulses_per_liter_RO] * 5
+    return [(ml / 1000.0) * p for ml, p in zip(container_ml, ppl)]
 
 pulses_needed = calc_pulses_needed()
 
@@ -49,6 +57,38 @@ MAX_VALVE_OPEN_TIME = 600
 root = None
 status_var = None
 progress_var = None
+
+# ---------------- Config save / load ----------------
+def save_config():
+    """Writes calibration + container amounts. Raises on failure."""
+    with open(CAL_FILE, "w") as f:
+        f.write(f"Pulses_per_liter_RO={Pulses_per_liter_RO}\n")
+        f.write(f"Pulses_per_liter_coffee={Pulses_per_liter_coffee}\n")
+        for i, ml in enumerate(container_ml):
+            f.write(f"Amount_{i+1}={int(ml)}\n")
+
+def load_calibration():
+    global Pulses_per_liter_RO, Pulses_per_liter_coffee, pulses_needed
+    try:
+        with open(CAL_FILE, "r") as f:
+            for line in f:
+                key, _, val = line.strip().partition("=")
+                if not val:
+                    continue
+                if key == "Pulses_per_liter_RO":
+                    Pulses_per_liter_RO = int(val)
+                elif key == "Pulses_per_liter_coffee":
+                    Pulses_per_liter_coffee = int(val)
+                elif key.startswith("Amount_"):
+                    idx = int(key.split("_")[1]) - 1
+                    if 0 <= idx < len(container_ml):
+                        container_ml[idx] = int(val)
+        pulses_needed = calc_pulses_needed()
+        print(f"Calibration loaded: RO={Pulses_per_liter_RO}, Coffee={Pulses_per_liter_coffee}, Amounts={container_ml}")
+    except FileNotFoundError:
+        print("No calibration file found, using defaults")
+    except Exception as e:
+        print(f"Error loading calibration: {e}")
 
 # ---------------- Backlight ----------------
 def set_brightness(level):
@@ -212,6 +252,69 @@ def on_button_click(button_number):
     duration = pulses_needed[button_number - 1]
     if root:
         root.after(0, lambda: status_var.set(f"Dispensing button {button_number}"))
+
+# ---------------- Container Amount Screen ----------------
+def open_amount_screen(index):
+    """Adjust the dispensed amount (ml) for container button `index` (0-5)."""
+    global sleepEnabled, currentTime
+    sleepEnabled = False
+    currentTime = time.time()
+
+    win = tk.Toplevel(root)
+    win.title("Adjust Amount")
+    win.geometry("800x480")
+    win.config(bg="black")
+
+    title = f"Container {index + 1} Amount"
+    if index == 0:
+        title += " (coffee - finished volume)"
+    tk.Label(win, text=title, fg="white", bg="black",
+             font=("Arial", 20, "bold")).pack(pady=15)
+
+    value_label = tk.Label(win, text=f"{container_ml[index]} ml", fg="cyan", bg="black",
+                           font=("Arial", 36, "bold"))
+    value_label.pack(pady=10)
+
+    slider = tk.Scale(win, from_=50, to=8000, orient="horizontal", length=700,
+                      bg="black", fg="white", troughcolor="gray30", highlightthickness=0,
+                      font=("Arial", 12), sliderlength=40, width=20, showvalue=0,
+                      command=lambda v: value_label.config(text=f"{int(float(v))} ml"))
+    slider.set(container_ml[index])
+    slider.pack(pady=10)
+
+    # Fine adjust buttons
+    fine_frame = tk.Frame(win, bg="black")
+    fine_frame.pack(pady=10)
+    for idx, delta in enumerate([-100, -10, -1, 1, 10, 100]):
+        label = f"{delta:+d}"
+        tk.Button(fine_frame, text=label, font=("Arial", 16, "bold"), width=6, height=2,
+                  command=lambda d=delta: slider.set(slider.get() + d),
+                  bg="gray25", fg="white", activebackground="gray40").grid(
+            row=0, column=idx, padx=4, pady=3)
+
+    def reset_default():
+        slider.set(DEFAULT_CONTAINER_ML[index])
+
+    def save_amount():
+        global pulses_needed
+        container_ml[index] = int(slider.get())
+        pulses_needed = calc_pulses_needed()
+        try:
+            save_config()
+            status_var.set(f"Container {index + 1} set to {container_ml[index]} ml")
+        except Exception as e:
+            status_var.set(f"Amount set (not saved to file): {e}")
+        win.destroy()
+
+    button_frame = tk.Frame(win, bg="black")
+    button_frame.pack(pady=25)
+    tk.Button(button_frame, text="Cancel", font=("Arial", 16), width=12,
+              command=win.destroy, bg="gray30", fg="white").pack(side="left", padx=10)
+    tk.Button(button_frame, text="Reset", font=("Arial", 16), width=12,
+              command=reset_default, bg="orange", fg="white").pack(side="left", padx=10)
+    tk.Button(button_frame, text="Save", font=("Arial", 16), width=12,
+              command=save_amount, bg="green", fg="white",
+              activebackground="darkgreen").pack(side="left", padx=10)
 
 # ---------------- Custom Amount Screen ----------------
 def open_custom_screen():
@@ -432,9 +535,7 @@ def open_calibration_screen():
 
     def save_to_file():
         try:
-            with open("/home/edp/Desktop/WaterStation/calibration.txt", "w") as f:
-                f.write(f"Pulses_per_liter_RO={Pulses_per_liter_RO}\n")
-                f.write(f"Pulses_per_liter_coffee={Pulses_per_liter_coffee}\n")
+            save_config()
             status_label.config(text="Saved!", fg="green")
             cal_win.after(1500, cal_win.destroy)
         except Exception as e:
@@ -465,23 +566,6 @@ def open_calibration_screen():
 
     tk.Button(main_frame, text="Close", font=("Arial", 12), width=15,
               command=cal_win.destroy, bg="gray30", fg="white").pack(pady=5)
-
-# ---------------- Load Calibration on Startup ----------------
-def load_calibration():
-    global Pulses_per_liter_RO, Pulses_per_liter_coffee, pulses_needed
-    try:
-        with open("edp/Desktop/WaterStationcalibration.txt", "r") as f:
-            for line in f:
-                if line.startswith("Pulses_per_liter_RO="):
-                    Pulses_per_liter_RO = int(line.split("=")[1].strip())
-                elif line.startswith("Pulses_per_liter_coffee="):
-                    Pulses_per_liter_coffee = int(line.split("=")[1].strip())
-        pulses_needed = calc_pulses_needed()
-        print(f"Calibration loaded: RO={Pulses_per_liter_RO}, Coffee={Pulses_per_liter_coffee}")
-    except FileNotFoundError:
-        print("No calibration file found, using defaults")
-    except Exception as e:
-        print(f"Error loading calibration: {e}")
 
 # ---------------- Settings Screen ----------------
 def open_settings_screen():
@@ -538,6 +622,23 @@ def load_image(image_path, width, height):
     padded.paste(img, offset)
     return ImageTk.PhotoImage(padded)
 
+def make_container_handlers(i):
+    """Short tap = dispense. Long press (while idle) = adjust this container's amount."""
+    state = {"t": 0.0}
+
+    def on_press(e):
+        state["t"] = time.time()
+
+    def on_release(e):
+        held = time.time() - state["t"]
+        dispensing = drinkWaterEnabled or coffeeWaterEnabled
+        if held >= LONG_PRESS_SECONDS and not dispensing:
+            open_amount_screen(i)
+        else:
+            on_button_click(i + 1)
+
+    return on_press, on_release
+
 def create_gui():
     global root, status_var, progress_var
     root = tk.Tk()
@@ -550,15 +651,20 @@ def create_gui():
     image_width, image_height = 250, 200
     image_paths = [
         "/home/edp/Desktop/WaterStation/MoccaMaster1L.jpg", "/home/edp/Desktop/WaterStation/32ozCup.jpg",
-"/home/edp/Desktop/WaterStation/nalgene.jpg", "/home/edp/Desktop/WaterStation/kidsCup.jpg",
+        "/home/edp/Desktop/WaterStation/nalgene.jpg", "/home/edp/Desktop/WaterStation/kidsCup.jpg",
         "/home/edp/Desktop/WaterStation/kidsBottle.jpg", "/home/edp/Desktop/WaterStation/BlueCup.jpg"
     ]
 
+    container_buttons.clear()
     for i in range(6):
         img = load_image(image_paths[i], image_width, image_height)
-        button = tk.Button(root, image=img, command=lambda i=i: on_button_click(i+1))
+        button = tk.Button(root, image=img)
         button.image = img
         button.grid(row=i//3, column=i%3, padx=2, pady=2)
+        on_press, on_release = make_container_handlers(i)
+        button.bind("<ButtonPress-1>", on_press)
+        button.bind("<ButtonRelease-1>", on_release)
+        container_buttons.append(button)
 
     progress_var = tk.IntVar()
     ttk.Progressbar(root, variable=progress_var, maximum=100).grid(
