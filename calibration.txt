@@ -1,8 +1,8 @@
 Pulses_per_liter_RO=1932
 Pulses_per_liter_coffee=628
 Amount_1=1250
-Amount_2=760
+Amount_2=762
 Amount_3=1000
-Amount_4=200
+Amount_4=180
 Amount_5=200
 Amount_6=325
